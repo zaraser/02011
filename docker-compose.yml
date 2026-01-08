@@ -1,0 +1,237 @@
+# docker-compose.yml
+services:
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: docker-proxy
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1
+      - SERVICES=1
+      - TASKS=1
+      - NETWORKS=1
+      - EVENTS=1
+      - SYSTEM=1
+      - VERSION=1
+      - INFO=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # - /run/user/101968/docker.sock:/var/run/docker.sock:ro
+    expose:
+      - "2375"
+    networks:
+      - proxy_net
+      - transcendance_net   # ← zara ajoute cette ligne
+
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    depends_on:
+      - docker-proxy
+    command:
+      - "--providers.docker=true" #repasser sur true si on enleve le docker proxy
+      - "--providers.docker.endpoint=http://docker-proxy:2375" #a enelever si pu le docker proxy
+      - "--providers.docker.exposedbydefault=false"
+      # entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # redirection http -> https (global)
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # provider fichier pour le TLS local
+      - "--providers.file.directory=/dynamics"
+      - "--providers.file.watch=true"
+      # dashboard local (HTTP) + metriques
+      - "--api.insecure=true"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addrouterslabels=true"
+      - "--accesslog=true"
+      - "--log.level=DEBUG"
+    ports:
+      - "8082:80" #http
+      - "8443:443" #https
+      - "8081:8080" #dashboard
+    volumes:
+      - ./reverse-proxy/certs:/certs:ro
+      - ./reverse-proxy/dynamics:/dynamics:ro
+    networks:
+      - proxy_net
+      - transcendance_net
+
+
+  auth:
+    container_name: auth
+    build:
+      context: ./server/services/auth
+    expose:
+      - "3001"
+    labels:
+      - "traefik.enable=true"
+      #- "traefik.http.routers.auth.rule=Host(`localhost`) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls=true"
+      - "traefik.http.routers.auth.priority=100"
+      - "traefik.http.services.auth.loadbalancer.server.port=3001"
+      - "traefik.http.middlewares.metrics-auth.basicauth.users=prometheus:$$apr1$$qwerty$$mU8gq/R4L.0ZVmZJKzzWb0"
+      - "traefik.docker.network=transcendance_net"
+    volumes:
+      - ./server/services/auth:/app
+      - auth-data:/app/data # ← zara ajoute cette ligne
+    env_file:
+      - ./.env
+    environment:
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      REDIRECT_URI: ${REDIRECT_URI}
+      CHOKIDAR_USEPOLLING: true
+    #command: sh -c "npm install && npm run dev".  Zara
+    networks: 
+      - transcendance_net
+
+  chat:
+    container_name: chat
+    build:
+      context: ./server/services/chat
+    expose:
+      - "3002"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat.rule=PathPrefix(`/chat`)"
+      - "traefik.http.routers.chat.entrypoints=websecure"
+      - "traefik.http.routers.chat.tls=true"
+      - "traefik.http.services.chat.loadbalancer.server.port=3002"
+      - "traefik.docker.network=transcendance_net"
+    env_file:
+      - ./.env
+    networks:
+      - transcendance_net
+
+
+
+  webapp:
+    container_name: webapp
+    build:
+      context: ./webapp
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./webapp:/webapp
+    env_file:
+      - ./.env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.front.entrypoints=websecure"
+      - "traefik.http.routers.front.tls=true"
+      - "traefik.http.routers.front.priority=1"
+      - "traefik.http.services.front.loadbalancer.server.port=5173"
+      - "traefik.docker.network=transcendance_net"
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - transcendance_net
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - transcendance_net
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.es.rule=Host(`localhost`) && PathPrefix(`/es`)"
+      - "traefik.http.routers.es.entrypoints=websecure"
+      - "traefik.http.routers.es.tls=true"
+      - "traefik.http.middlewares.es-strip.stripprefix.prefixes=/es"
+      - "traefik.http.routers.es.middlewares=es-strip"
+      - "traefik.http.services.es.loadbalancer.server.port=9200"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - transcendance_net
+
+
+  # node-exporter:
+  #   image: prom/node-exporter:latest
+  #   container_name: node-exporter
+  #   expose:
+  #     - "9100"
+  #   command:
+  #     - "--path.rootfs=/host"
+  #     - "--web.listen-address=:9100"
+  #   volumes:
+  #     - /:/host:ro,rslave
+  #   networks: 
+  #     - transcendance_net
+
+
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.8
+    container_name: elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - xpack.security.http.ssl.enabled=true            # dev: pas de TLS, derrière Traefik
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    # ulimits:
+    #   memlock: { soft: -1, hard: -1 }
+    volumes:
+      - elastic-data:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+    env_file:
+      - ./.env
+    networks:
+      - transcendance_net
+
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elastic:9200
+      # si sécurité activée :
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USER}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    depends_on:
+      - elastic
+    ports:
+      - "5601:5601"
+    networks:
+      - transcendance_net
+
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  elastic-data:
+  auth-data:  # ← zara ajoute cette ligne
+
+
+networks:
+  proxy_net:
+    name: proxy_net
+    driver: bridge
+  transcendance_net:
+    driver: bridge

@@ -1,0 +1,66 @@
+/* webapp/src/style/chat/messageInput.css */
+
+.message-input-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 8px;
+    border-top: 1px solid #4a618e;
+    background: #ffffff;
+  }
+  
+  .message-textarea {
+    flex: 1;
+    resize: none;
+    min-height: 40px;
+    max-height: 140px;
+  
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+  
+    font-size: 14px;
+    line-height: 1.4;
+    outline: none;
+  }
+  
+  .message-textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 1px #6366f1;
+  }
+  
+  /* ОБЩИЕ КНОПКИ */
+  .message-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    font-size: 15px;
+    transition: background 0.15s ease;
+  }
+  
+  /* ➤ SEND */
+  .message-btn.send {
+    background: #4f46e5;
+    color: rgb(6, 5, 5)1, 19, 19);
+  }
+  
+  .message-btn.send:hover {
+    background: #4338ca;
+  }
+  
+  /* 🚫 BLOCK */
+  .message-btn.block {
+    background: #fee2e2;
+  }
+  
+  .message-btn.block:hover {
+    background: #0f0f0f;
+  }
+  

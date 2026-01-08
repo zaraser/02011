@@ -1,0 +1,102 @@
+.homepage {
+    margin: 0;
+    padding: 0;
+    /* box-sizing: border-box; */
+    font-family: "Poppins";
+
+}
+
+.title-container {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+}
+
+
+h3 {
+    color: white;
+    font-size: 4rem;
+    animation: glow 4s ease-in-out infinite alternate;
+}
+
+h4 {
+    color: rgb(141, 138, 138);
+    font-size: 2rem;
+}
+
+.settingsHome {
+    position: fixed;
+    top: 4rem;
+    right: 10.5rem;
+    z-index: 1000;
+    font-size: small;
+    color: beige;
+    background-color: rgb(120, 120, 122);
+    font-weight: bold;
+    border-radius: 2rem;
+    width: 8rem;
+}
+
+.logoutHome {
+    position: fixed;
+    top: 4rem;
+    right: 0rem;
+    z-index: 1000;
+    font-size: small;
+    color: beige;
+    background-color: rgb(120, 120, 122);
+    font-weight: bold;
+    border-radius: 2rem;
+    width: 10rem;
+}
+
+.settingsBox {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 1000;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    overflow: hidden;
+    border: 2px solid rgb(255, 255, 255);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.avatarHomePage {
+    width: 140%;
+    height: 140%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.loginHomePage {
+    position: fixed;
+    top: 2rem;
+    right: 5rem;
+    z-index: 1000;
+    font-size: small;
+    color: beige;
+    font-weight: bold;
+}
+
+.gameBox {
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    padding: 2rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 40rem;
+    height: 40rem;
+    display: flex;
+
+    /* Positionnement */
+    position: absolute;        /* ou fixed si tu veux qu'elle reste visible au scroll */
+    bottom: 4rem;              /* Distance par rapport au bas de la page */
+    left: 30%;                  /* Départ du centre horizontal */
+    transform: translateX(-50%);
+}
